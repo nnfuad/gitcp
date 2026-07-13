@@ -25,8 +25,11 @@ client = OpenAI(
     api_key=OPENROUTER_API_KEY,
 )
 
-# Top tier free models for CP on OpenRouter
+# Top tier models for CP on OpenRouter (includes requested additions)
 FALLBACK_MODELS = [
+    "poolside/laguna-xs-2.1:free",
+    "deepseek/deepseek-chat",
+    "qwen/qwen3-coder",
     "qwen/qwen3-coder:free",
     "meta-llama/llama-3.3-70b-instruct:free",
     "nousresearch/hermes-3-llama-3.1-405b:free",
