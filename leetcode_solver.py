@@ -3,6 +3,7 @@ import sys
 import json
 import time
 import requests
+import cloudscraper
 import subprocess
 from datetime import datetime
 from dotenv import load_dotenv
@@ -24,6 +25,13 @@ client = OpenAI(
     base_url="https://openrouter.ai/api/v1",
     api_key=OPENROUTER_API_KEY,
 )
+
+# Initialize cloudscraper to bypass Cloudflare
+scraper = cloudscraper.create_scraper(browser={
+    'browser': 'chrome',
+    'platform': 'windows',
+    'desktop': True
+})
 
 # Top tier models for CP on OpenRouter (includes requested additions)
 FALLBACK_MODELS = [
@@ -77,7 +85,7 @@ def get_daily_problem():
     }
     """
     
-    response = requests.post(
+    response = scraper.post(
         url, 
         json={'query': query}, 
         headers=get_headers(),
@@ -159,7 +167,7 @@ def submit_to_leetcode(title_slug, question_id, code):
     }
     
     try:
-        response = requests.post(
+        response = scraper.post(
             submit_url,
             json=payload,
             headers=get_headers(),
@@ -183,7 +191,7 @@ def submit_to_leetcode(title_slug, question_id, code):
         
         for _ in range(15):  # Try for 15*2 = 30 seconds
             time.sleep(2)
-            check_resp = requests.get(
+            check_resp = scraper.get(
                 check_url,
                 headers=get_headers(),
                 cookies=get_cookies()
