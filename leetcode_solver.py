@@ -100,10 +100,51 @@ def get_daily_problem():
     
     if response.status_code == 200:
         data = response.json()
-        if 'data' in data and data['data']['activeDailyCodingChallengeQuestion']:
+        if 'data' in data and data['data'].get('activeDailyCodingChallengeQuestion'):
             return data['data']['activeDailyCodingChallengeQuestion']
         else:
             print("Could not find the daily question in the response.")
+            return None
+    else:
+        print(f"Failed to fetch data: {response.status_code}")
+        return None
+
+def get_specific_problem(title_slug):
+    print(f"Fetching LeetCode problem: {title_slug}...")
+    url = "https://leetcode.com/graphql"
+    query = f"""
+    query {{
+      question(titleSlug: "{title_slug}") {{
+        questionId
+        title
+        titleSlug
+        difficulty
+        topicTags {{
+          name
+        }}
+        content
+      }}
+    }}
+    """
+    
+    response = scraper.post(
+        url, 
+        json={'query': query}, 
+        headers=get_headers(),
+        cookies=get_cookies()
+    )
+    
+    if response.status_code == 200:
+        data = response.json()
+        if 'data' in data and data['data'].get('question'):
+            # Wrap it in the same structure as the daily problem for compatibility
+            return {
+                'date': datetime.now().strftime("%Y-%m-%d"),
+                'link': f"/problems/{title_slug}/",
+                'question': data['data']['question']
+            }
+        else:
+            print("Could not find the specified question.")
             return None
     else:
         print(f"Failed to fetch data: {response.status_code}")
@@ -270,9 +311,16 @@ def save_and_commit(problem_data, solution_data):
         print(f"Git operation failed: {e.stderr if e.stderr else e.output}")
 
 def main():
-    problem_data = get_daily_problem()
+    if len(sys.argv) > 1:
+        # User provided a specific problem slug
+        title_slug = sys.argv[1].split('/')[-1].replace('/', '') # Handle full URLs or just slugs
+        problem_data = get_specific_problem(title_slug)
+    else:
+        # Default to daily problem
+        problem_data = get_daily_problem()
+
     if not problem_data:
-        print("Could not retrieve daily problem. Exiting.")
+        print("Could not retrieve problem data. Exiting.")
         sys.exit(1)
         
     print(f"Today's problem: {problem_data['question']['title']}")
