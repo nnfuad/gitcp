@@ -80,8 +80,74 @@ The project relies on the following Python packages (`requirements.txt`):
 - `openai`: Used as the client interface for OpenRouter's API.
 - `certifi`: To handle local SSL certificate validation.
 
-## 🚀 How to Run
-1. Install dependencies: `pip install -r requirements.txt`
-2. Run the initial configuration: `python setup.py`
-3. Execute for a specific problem: `python leetcode_solver.py <problem-url-or-slug>`
-   *(or simply run `python leetcode_solver.py` for the daily problem)*
+---
+
+## 🚀 Installation & Usage Guide
+
+### Prerequisites
+Make sure you have [Python 3.8+](https://www.python.org/downloads/) and [Git](https://git-scm.com/downloads) installed on your system.
+
+### 1. Clone the Repository
+Open your terminal or command prompt and run:
+```bash
+git clone https://github.com/nnfuad/gitcp.git
+cd gitcp
+```
+
+### 2. OS-Specific Setup
+
+#### 🍎 macOS (Intel & M-Series / Apple Silicon)
+Python is usually installed on macOS as `python3`. 
+```bash
+# Install dependencies
+pip3 install -r requirements.txt
+
+# Run the setup wizard
+python3 setup.py
+```
+*(Note for M-series users: The script runs natively on Apple Silicon without Rosetta. The included `certifi` module handles macOS SSL certificates automatically).*
+
+#### 🪟 Windows
+On Windows, the default command is usually `python`.
+```cmd
+# Install dependencies
+pip install -r requirements.txt
+
+# Run the setup wizard
+python setup.py
+```
+
+#### 🐧 Linux (Ubuntu/Debian/etc.)
+Most Linux distributions map Python to `python3`.
+```bash
+# Install dependencies (you may need python3-pip)
+pip3 install -r requirements.txt
+
+# Run the setup wizard
+python3 setup.py
+```
+
+---
+
+## 🏃‍♂️ Running the Solver
+
+Once setup is complete, you can trigger the solver. Remember to use `python` for Windows and `python3` for macOS/Linux:
+
+**To solve the Daily LeetCode Challenge:**
+```bash
+# macOS/Linux
+python3 leetcode_solver.py
+
+# Windows
+python leetcode_solver.py
+```
+
+**To solve a specific LeetCode problem:**
+Just pass the problem's URL or slug as an argument.
+```bash
+# macOS/Linux
+python3 leetcode_solver.py https://leetcode.com/problems/two-sum/
+
+# Windows
+python leetcode_solver.py https://leetcode.com/problems/two-sum/
+```
