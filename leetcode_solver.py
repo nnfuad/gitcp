@@ -312,8 +312,8 @@ def save_and_commit(problem_data, solution_data):
 
 def main():
     if len(sys.argv) > 1:
-        # User provided a specific problem slug
-        title_slug = sys.argv[1].split('/')[-1].replace('/', '') # Handle full URLs or just slugs
+        # User provided a specific problem slug (strip trailing slashes first)
+        title_slug = sys.argv[1].strip('/').split('/')[-1]
         problem_data = get_specific_problem(title_slug)
     else:
         # Default to daily problem

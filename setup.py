@@ -61,4 +61,4 @@ if __name__ == "__main__":
     setup_env()
     setup_github()
     print("\n=== Setup Complete! ===")
-    print("You can now run: python leetcode_solver.py")
+    print("You can now run: python3 leetcode_solver.py or python leetcode_solver.py")
