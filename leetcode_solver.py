@@ -21,6 +21,7 @@ load_dotenv()
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 LEETCODE_SESSION = os.getenv("LEETCODE_SESSION")
 LEETCODE_CSRF_TOKEN = os.getenv("LEETCODE_CSRF_TOKEN")
+TARGET_REPO_DIR = os.getenv("TARGET_REPO_DIR", os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "LeetCode Solved")))
 
 if not OPENROUTER_API_KEY:
     print("Error: OPENROUTER_API_KEY environment variable not set. Please run python setup.py")
@@ -269,14 +270,17 @@ def save_and_commit(problem_data, solution_data):
     
     folder_name = f"{date_str}_{title_slug}"
     
-    # Create directory
-    if not os.path.exists(folder_name):
-        os.makedirs(folder_name)
-        
-    qa_path = os.path.join(folder_name, "QA_analysis.md")
-    soln_path = os.path.join(folder_name, "soln.py")
+    # The full path to the new problem folder
+    full_folder_path = os.path.join(TARGET_REPO_DIR, folder_name)
     
-    print(f"Saving files to {folder_name}...")
+    # Create directory
+    if not os.path.exists(full_folder_path):
+        os.makedirs(full_folder_path)
+        
+    qa_path = os.path.join(full_folder_path, "QA_analysis.md")
+    soln_path = os.path.join(full_folder_path, "soln.py")
+    
+    print(f"Saving files to {full_folder_path}...")
     with open(qa_path, "w", encoding="utf-8") as f:
         f.write(f"# {title}\n\n")
         f.write(f"**Difficulty:** {problem_data['question']['difficulty']}\n\n")
@@ -290,17 +294,17 @@ def save_and_commit(problem_data, solution_data):
     # Git operations
     print("Committing to Git...")
     try:
-        subprocess.run(["git", "add", folder_name], check=True, capture_output=True)
-        status = subprocess.run(["git", "status", "--porcelain"], check=True, capture_output=True, text=True)
+        subprocess.run(["git", "add", folder_name], cwd=TARGET_REPO_DIR, check=True, capture_output=True)
+        status = subprocess.run(["git", "status", "--porcelain"], cwd=TARGET_REPO_DIR, check=True, capture_output=True, text=True)
         
         if status.stdout.strip():
             commit_msg = f"Auto-solved: {title} ({date_str})"
-            subprocess.run(["git", "commit", "-m", commit_msg], check=True, capture_output=True)
+            subprocess.run(["git", "commit", "-m", commit_msg], cwd=TARGET_REPO_DIR, check=True, capture_output=True)
             print(f"Committed: {commit_msg}")
             
             try:
                 print("Attempting to push...")
-                subprocess.run(["git", "push", "-u", "origin", "main"], check=True, capture_output=True, text=True)
+                subprocess.run(["git", "push", "-u", "origin", "main"], cwd=TARGET_REPO_DIR, check=True, capture_output=True, text=True)
                 print("Push successful!")
             except subprocess.CalledProcessError as e:
                 print("Push failed. Error:", e.stderr)

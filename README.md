@@ -56,13 +56,13 @@ This is the main automation script. Here is a breakdown of how it works and what
 - **Lines 216-233**: Posts the solution to LeetCode's internal `/submit/` endpoint and extracts the `submission_id`.
 - **Lines 236-259**: The polling mechanism. It queries the `/submissions/detail/{submission_id}/check/` endpoint every 2 seconds (up to 15 times). Once the state changes to `SUCCESS`, it evaluates the `status_msg`. If the status is "Accepted", it prints the runtime and memory metrics and returns `True`. Otherwise, it flags the submission as failed.
 
-### 6. Archiving & Git Synchronization (Lines 265 - 312)
+### 6. Archiving & Git Synchronization (Lines 265 - 317)
 - **`save_and_commit(problem_data, solution_data)`**: Handles the local file system and Git version control if the submission was successful.
-- **Lines 266-275**: Dynamically generates a folder name using the date and problem slug (e.g., `2026-07-13_sequential-digits`) and creates the directory.
-- **Lines 276-288**: Writes two files into the new directory:
+- **Lines 266-281**: Sets the target repository directory to `/Users/nurnafisfuad/Developer/LeetCode Solved`. Dynamically generates a folder name using the date and problem slug (e.g., `2026-07-13_sequential-digits`) and creates the directory inside the target repository.
+- **Lines 282-293**: Writes two files into the new directory:
   - `QA_analysis.md`: Contains the problem title, difficulty, LeetCode link, and the AI's detailed explanation.
   - `soln.py`: Contains the raw Python solution code.
-- **Lines 290-312**: Executes sequential `subprocess` calls to stage the new directory (`git add`), check if there are changes to commit (`git status`), create a commit with an auto-generated message (`git commit`), and finally push the changes to the configured remote repository (`git push -u origin main`).
+- **Lines 295-317**: Executes sequential `subprocess` calls in the `target_repo_dir` to stage the new directory (`git add`), check if there are changes to commit (`git status`), create a commit with an auto-generated message (`git commit`), and finally push the changes to the configured remote repository (`git push -u origin main`).
 
 ### 7. Main Execution Flow (Lines 313 - 348)
 - **`main()`**: The orchestrator function.
