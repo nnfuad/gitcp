@@ -57,7 +57,8 @@ def get_headers(title_slug=None):
         "Content-Type": "application/json",
         "Origin": "https://leetcode.com",
         "Referer": f"https://leetcode.com/problems/{title_slug}/" if title_slug else "https://leetcode.com/",
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "X-Requested-With": "XMLHttpRequest"
     }
     if LEETCODE_CSRF_TOKEN:
         headers["x-csrftoken"] = LEETCODE_CSRF_TOKEN
@@ -211,7 +212,7 @@ def submit_to_leetcode(title_slug, question_id, code):
     
     payload = {
         "lang": "python3",
-        "question_id": question_id,
+        "question_id": int(question_id) if str(question_id).isdigit() else question_id,
         "typed_code": code
     }
     
