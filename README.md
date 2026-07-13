@@ -39,36 +39,36 @@ This is the main automation script. Here is a breakdown of how it works and what
 - **`get_headers()` (Lines 54-62)**: Constructs the HTTP headers required for LeetCode API requests. It dynamically injects the `x-csrftoken` if available and mimics a standard macOS Chrome user agent.
 - **`get_cookies()` (Lines 64-70)**: Constructs the HTTP cookies dictionary using the `LEETCODE_SESSION` and `csrftoken` environment variables.
 
-### 3. Fetching the Daily Problem (Lines 72 - 110)
-- **`get_daily_problem()`**: Sends a POST request to LeetCode's GraphQL API endpoint (`https://leetcode.com/graphql`).
-- **Lines 75-92**: Contains the exact GraphQL query payload required to fetch the `activeDailyCodingChallengeQuestion`. It requests crucial data points such as the date, problem title, difficulty, topic tags, and the HTML description of the problem.
-- **Lines 94-110**: Uses `cloudscraper` to execute the POST request with the constructed headers and cookies. If the request is successful, it parses the JSON response and returns the problem data payload.
+### 3. Fetching the Problem (Lines 72 - 151)
+- **`get_daily_problem()` (Lines 72-110)**: Sends a POST request to LeetCode's GraphQL API endpoint to fetch the `activeDailyCodingChallengeQuestion`. It requests crucial data points such as the date, problem title, difficulty, topic tags, and the HTML description of the problem.
+- **`get_specific_problem(title_slug)` (Lines 112-151)**: Fetches a specific problem using its title slug via the GraphQL API, allowing the solver to target specific challenges beyond just the daily one. It formats the response identically to the daily problem for downstream compatibility.
 
-### 4. AI-Powered Solution Generation (Lines 112 - 159)
+### 4. AI-Powered Solution Generation (Lines 153 - 200)
 - **`solve_problem_with_llm(problem_data)`**: Takes the fetched problem data and uses an LLM to generate a solution.
-- **Lines 114-118**: Extracts the title, difficulty, raw HTML content, and tags from the GraphQL response.
-- **Lines 120-135**: Constructs a highly specific system prompt. It provides the LLM with the problem context and strictly mandates the output to be in a valid JSON format containing two fields: `QA_analysis` (a markdown explanation) and `soln` (the Python code).
-- **Lines 137-159**: A retry loop that iterates over the `FALLBACK_MODELS`. It sends the prompt to OpenRouter, enforcing JSON mode. If a model succeeds, it parses the JSON response and returns it. If an exception occurs (e.g., timeout, formatting error), it catches it and attempts the next model in the hierarchy.
+- **Lines 155-159**: Extracts the title, difficulty, raw HTML content, and tags from the GraphQL response.
+- **Lines 161-176**: Constructs a highly specific system prompt. It provides the LLM with the problem context and strictly mandates the output to be in a valid JSON format containing two fields: `QA_analysis` (a markdown explanation) and `soln` (the Python code).
+- **Lines 178-200**: A retry loop that iterates over the `FALLBACK_MODELS`. It sends the prompt to OpenRouter, enforcing JSON mode. If a model succeeds, it parses the JSON response and returns it. If an exception occurs (e.g., timeout, formatting error), it catches it and attempts the next model in the hierarchy.
 
-### 5. Automated Submission & Evaluation (Lines 161 - 223)
+### 5. Automated Submission & Evaluation (Lines 202 - 264)
 - **`submit_to_leetcode(title_slug, question_id, code)`**: Pushes the LLM-generated code to LeetCode for evaluation.
-- **Lines 162-164**: A safety check that bypasses submission if authentication cookies are missing, allowing the script to still function as a localized solver/archiver.
-- **Lines 169-173**: Constructs the submission payload specifying `python3` as the language.
-- **Lines 175-192**: Posts the solution to LeetCode's internal `/submit/` endpoint and extracts the `submission_id`.
-- **Lines 195-218**: The polling mechanism. It queries the `/submissions/detail/{submission_id}/check/` endpoint every 2 seconds (up to 15 times). Once the state changes to `SUCCESS`, it evaluates the `status_msg`. If the status is "Accepted", it prints the runtime and memory metrics and returns `True`. Otherwise, it flags the submission as failed.
+- **Lines 203-205**: A safety check that bypasses submission if authentication cookies are missing, allowing the script to still function as a localized solver/archiver.
+- **Lines 210-214**: Constructs the submission payload specifying `python3` as the language.
+- **Lines 216-233**: Posts the solution to LeetCode's internal `/submit/` endpoint and extracts the `submission_id`.
+- **Lines 236-259**: The polling mechanism. It queries the `/submissions/detail/{submission_id}/check/` endpoint every 2 seconds (up to 15 times). Once the state changes to `SUCCESS`, it evaluates the `status_msg`. If the status is "Accepted", it prints the runtime and memory metrics and returns `True`. Otherwise, it flags the submission as failed.
 
-### 6. Archiving & Git Synchronization (Lines 224 - 271)
+### 6. Archiving & Git Synchronization (Lines 265 - 312)
 - **`save_and_commit(problem_data, solution_data)`**: Handles the local file system and Git version control if the submission was successful.
-- **Lines 225-234**: Dynamically generates a folder name using the date and problem slug (e.g., `2026-07-13_sequential-digits`) and creates the directory.
-- **Lines 235-247**: Writes two files into the new directory:
+- **Lines 266-275**: Dynamically generates a folder name using the date and problem slug (e.g., `2026-07-13_sequential-digits`) and creates the directory.
+- **Lines 276-288**: Writes two files into the new directory:
   - `QA_analysis.md`: Contains the problem title, difficulty, LeetCode link, and the AI's detailed explanation.
   - `soln.py`: Contains the raw Python solution code.
-- **Lines 249-271**: Executes sequential `subprocess` calls to stage the new directory (`git add`), check if there are changes to commit (`git status`), create a commit with an auto-generated message (`git commit`), and finally push the changes to the configured remote repository (`git push -u origin main`).
+- **Lines 290-312**: Executes sequential `subprocess` calls to stage the new directory (`git add`), check if there are changes to commit (`git status`), create a commit with an auto-generated message (`git commit`), and finally push the changes to the configured remote repository (`git push -u origin main`).
 
-### 7. Main Execution Flow (Lines 272 - 300)
+### 7. Main Execution Flow (Lines 313 - 348)
 - **`main()`**: The orchestrator function.
-- It sequentially calls `get_daily_problem()`, `solve_problem_with_llm()`, and `submit_to_leetcode()`.
-- **Lines 289-293**: Only triggers `save_and_commit()` if the LeetCode submission was successfully accepted, ensuring that only verified solutions are committed to the repository.
+- **Lines 314-320**: Parses command-line arguments. If a specific LeetCode problem URL or slug is provided, it calls `get_specific_problem()`. Otherwise, it defaults to calling `get_daily_problem()`.
+- **Lines 328-335**: Sequentially calls `solve_problem_with_llm()` and `submit_to_leetcode()`.
+- **Lines 337-341**: Only triggers `save_and_commit()` if the LeetCode submission was successfully accepted, ensuring that only verified solutions are committed to the repository.
 
 ---
 
@@ -83,4 +83,5 @@ The project relies on the following Python packages (`requirements.txt`):
 ## 🚀 How to Run
 1. Install dependencies: `pip install -r requirements.txt`
 2. Run the initial configuration: `python setup.py`
-3. Execute the daily pipeline: `python leetcode_solver.py`
+3. Execute for a specific problem: `python leetcode_solver.py <problem-url-or-slug>`
+   *(or simply run `python leetcode_solver.py` for the daily problem)*
