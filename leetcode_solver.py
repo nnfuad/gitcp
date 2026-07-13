@@ -52,10 +52,11 @@ FALLBACK_MODELS = [
     "openrouter/free"
 ]
 
-def get_headers():
+def get_headers(title_slug=None):
     headers = {
         "Content-Type": "application/json",
-        "Referer": "https://leetcode.com/",
+        "Origin": "https://leetcode.com",
+        "Referer": f"https://leetcode.com/problems/{title_slug}/" if title_slug else "https://leetcode.com/",
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     }
     if LEETCODE_CSRF_TOKEN:
@@ -131,7 +132,7 @@ def get_specific_problem(title_slug):
     response = scraper.post(
         url, 
         json={'query': query}, 
-        headers=get_headers(),
+        headers=get_headers(title_slug),
         cookies=get_cookies()
     )
     
@@ -218,8 +219,9 @@ def submit_to_leetcode(title_slug, question_id, code):
         response = scraper.post(
             submit_url,
             json=payload,
-            headers=get_headers(),
-            cookies=get_cookies()
+            headers=get_headers(title_slug),
+            cookies=get_cookies(),
+            allow_redirects=False
         )
         
         if response.status_code != 200:
@@ -241,7 +243,7 @@ def submit_to_leetcode(title_slug, question_id, code):
             time.sleep(2)
             check_resp = scraper.get(
                 check_url,
-                headers=get_headers(),
+                headers=get_headers(title_slug),
                 cookies=get_cookies()
             )
             if check_resp.status_code == 200:
