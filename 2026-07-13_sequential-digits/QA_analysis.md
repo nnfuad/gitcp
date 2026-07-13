@@ -6,13 +6,20 @@
 
 ---
 
-The problem requires finding all integers within a given range [low, high] that have sequential digits. Sequential digits mean each digit is exactly one more than the previous digit, forming numbers like 123 or 12345.
+The problem requires finding all integers within a given range [low, high] that have sequential digits. Sequential digits mean each digit is exactly one more than the previous digit (e.g., 123, 234). The solution must return these numbers in sorted order.
 
-Optimal Approach:
-To generate all possible sequential numbers efficiently, we can iterate over all possible lengths (from 2 to 9 digits) and starting digits (from 1 to 9 - length + 1). For each valid combination, we construct the number by concatenating consecutive digits. This approach ensures that all sequential numbers are generated in sorted order since longer numbers (with more digits) are naturally larger than shorter ones, and within the same length, numbers start from the smallest possible digit first.
+### Key Observations:
+1. **Sequential Digit Numbers**: These numbers are formed by starting at a digit and incrementing each subsequent digit by 1. For example, starting at 1 with length 3 gives 123.
+2. **Generation Strategy**: Generate all possible sequential numbers by varying the starting digit and length. For a given length `L`, the starting digit can range from 1 to `9 - (L - 1)` to ensure the last digit doesn't exceed 9.
+3. **Efficiency**: There are only 36 possible sequential numbers (sum of 1+2+...+8 for lengths 2 through 9). This allows generating all candidates upfront, filtering them by the range, and sorting the result.
 
-Time Complexity: O(1) because there are only 36 possible sequential numbers (sum of 8+7+6+...+1 = 36), making the algorithm constant time regardless of input size.
+### Approach:
+1. **Generate All Candidates**: Iterate over lengths from 2 to 9. For each length, compute valid starting digits and construct the sequential number.
+2. **Filter by Range**: Check if each generated number lies within [low, high].
+3. **Sort and Return**: Sort the filtered numbers and return them.
 
-Space Complexity: O(1) as well, since the maximum number of results is 36 elements.
+### Time and Space Complexity:
+- **Time**: O(1) since the number of candidates is fixed (36 numbers).
+- **Space**: O(1) as the maximum list size is 36 elements.
 
-This approach is optimal because it avoids generating numbers outside the required range and leverages the inherent ordering of sequential numbers.
+This approach is optimal due to the small and fixed number of candidates.

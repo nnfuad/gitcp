@@ -1,11 +1,13 @@
 class Solution:
     def sequentialDigits(self, low: int, high: int) -> List[int]:
-        result = []
+        res = []
         for length in range(2, 10):
-            for start in range(1, 10 - length + 1):
+            max_start = 9 - (length - 1)
+            for start in range(1, max_start + 1):
                 num = 0
-                for d in range(start, start + length):
-                    num = num * 10 + d
+                for i in range(length):
+                    num = num * 10 + (start + i)
                 if low <= num <= high:
-                    result.append(num)
-        return result
+                    res.append(num)
+        res.sort()
+        return res
