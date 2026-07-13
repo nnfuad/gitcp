@@ -1,0 +1,282 @@
+import os
+import sys
+import json
+import time
+import requests
+import subprocess
+from datetime import datetime
+from dotenv import load_dotenv
+from openai import OpenAI
+
+# Load environment variables
+load_dotenv()
+
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+LEETCODE_SESSION = os.getenv("LEETCODE_SESSION")
+LEETCODE_CSRF_TOKEN = os.getenv("LEETCODE_CSRF_TOKEN")
+
+if not OPENROUTER_API_KEY:
+    print("Error: OPENROUTER_API_KEY environment variable not set. Please run python setup.py")
+    sys.exit(1)
+
+# Initialize OpenRouter client via OpenAI SDK
+client = OpenAI(
+    base_url="https://openrouter.ai/api/v1",
+    api_key=OPENROUTER_API_KEY,
+)
+
+# Top tier free models for CP on OpenRouter
+FALLBACK_MODELS = [
+    "google/gemini-2.0-flash-exp:free",
+    "meta-llama/llama-3.3-70b-instruct:free",
+    "qwen/qwen-2.5-72b-instruct:free",
+    "nvidia/llama-3.1-nemotron-70b-instruct:free",
+    "google/gemma-2-9b-it:free"
+]
+
+def get_headers():
+    headers = {
+        "Content-Type": "application/json",
+        "Referer": "https://leetcode.com/",
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    }
+    if LEETCODE_CSRF_TOKEN:
+        headers["x-csrftoken"] = LEETCODE_CSRF_TOKEN
+    return headers
+
+def get_cookies():
+    cookies = {}
+    if LEETCODE_SESSION:
+        cookies["LEETCODE_SESSION"] = LEETCODE_SESSION
+    if LEETCODE_CSRF_TOKEN:
+        cookies["csrftoken"] = LEETCODE_CSRF_TOKEN
+    return cookies
+
+def get_daily_problem():
+    print("Fetching LeetCode problem of the day...")
+    url = "https://leetcode.com/graphql"
+    query = """
+    query {
+      activeDailyCodingChallengeQuestion {
+        date
+        link
+        question {
+          questionId
+          title
+          titleSlug
+          difficulty
+          topicTags {
+            name
+          }
+          content
+        }
+      }
+    }
+    """
+    
+    response = requests.post(
+        url, 
+        json={'query': query}, 
+        headers=get_headers(),
+        cookies=get_cookies()
+    )
+    
+    if response.status_code == 200:
+        data = response.json()
+        if 'data' in data and data['data']['activeDailyCodingChallengeQuestion']:
+            return data['data']['activeDailyCodingChallengeQuestion']
+        else:
+            print("Could not find the daily question in the response.")
+            return None
+    else:
+        print(f"Failed to fetch data: {response.status_code}")
+        return None
+
+def solve_problem_with_llm(problem_data):
+    print("Generating solution with OpenRouter...")
+    question = problem_data['question']
+    title = question['title']
+    difficulty = question['difficulty']
+    content = question['content']
+    tags = ", ".join([tag['name'] for tag in question['topicTags']])
+    
+    prompt = f"""
+You are an expert software engineer and competitive programmer.
+I need you to solve the following LeetCode problem:
+Title: {title}
+Difficulty: {difficulty}
+Tags: {tags}
+
+Problem Description (HTML):
+{content}
+
+Please provide your output exactly in the following JSON format. Ensure the JSON is valid, nicely formatted, and properly escaped. Do not wrap in markdown blocks, just raw JSON.
+{{
+    "QA_analysis": "A comprehensive markdown-formatted discussion of the problem, optimal approach (time and space complexity), and the solution.",
+    "soln": "class Solution:\\n    def method_name(self, args):\\n        pass"
+}}
+"""
+    
+    for model_name in FALLBACK_MODELS:
+        print(f"Trying model: {model_name}...")
+        try:
+            response = client.chat.completions.create(
+                model=model_name,
+                response_format={ "type": "json_object" },
+                messages=[
+                    {"role": "system", "content": "You are a helpful assistant designed to output JSON."},
+                    {"role": "user", "content": prompt}
+                ],
+                timeout=60
+            )
+            
+            result_text = response.choices[0].message.content
+            result_json = json.loads(result_text)
+            print(f"Success with {model_name}!")
+            return result_json
+            
+        except Exception as e:
+            print(f"Model {model_name} failed: {e}")
+            continue
+            
+    raise Exception("All fallback models failed to generate a solution.")
+
+def submit_to_leetcode(title_slug, question_id, code):
+    if not LEETCODE_SESSION or not LEETCODE_CSRF_TOKEN:
+        print("Skipping LeetCode submission (Cookies not provided).")
+        return True # Pretend success to continue git push
+
+    print("Submitting solution to LeetCode...")
+    submit_url = f"https://leetcode.com/problems/{title_slug}/submit/"
+    
+    payload = {
+        "lang": "python3",
+        "question_id": question_id,
+        "typed_code": code
+    }
+    
+    try:
+        response = requests.post(
+            submit_url,
+            json=payload,
+            headers=get_headers(),
+            cookies=get_cookies()
+        )
+        
+        if response.status_code != 200:
+            print(f"Submission failed with status code {response.status_code}")
+            print(response.text)
+            return False
+            
+        submission_id = response.json().get('submission_id')
+        if not submission_id:
+            print("Failed to get submission ID. Response:", response.json())
+            return False
+            
+        print(f"Submitted successfully (ID: {submission_id}). Waiting for results...")
+        
+        # Poll for results
+        check_url = f"https://leetcode.com/submissions/detail/{submission_id}/check/"
+        
+        for _ in range(15):  # Try for 15*2 = 30 seconds
+            time.sleep(2)
+            check_resp = requests.get(
+                check_url,
+                headers=get_headers(),
+                cookies=get_cookies()
+            )
+            if check_resp.status_code == 200:
+                result = check_resp.json()
+                state = result.get('state')
+                if state == 'SUCCESS':
+                    status_msg = result.get('status_msg')
+                    if status_msg == 'Accepted':
+                        print(f"✅ Submission Accepted! Runtime: {result.get('status_runtime')}, Memory: {result.get('status_memory')}")
+                        return True
+                    else:
+                        print(f"❌ Submission Failed. Status: {status_msg}")
+                        return False
+            
+        print("Submission evaluation timed out.")
+        return False
+        
+    except Exception as e:
+        print(f"Error submitting to LeetCode: {e}")
+        return False
+
+def save_and_commit(problem_data, solution_data):
+    date_str = problem_data['date']
+    title_slug = problem_data['question']['titleSlug']
+    title = problem_data['question']['title']
+    
+    folder_name = f"{date_str}_{title_slug}"
+    
+    # Create directory
+    if not os.path.exists(folder_name):
+        os.makedirs(folder_name)
+        
+    qa_path = os.path.join(folder_name, "QA_analysis.md")
+    soln_path = os.path.join(folder_name, "soln.py")
+    
+    print(f"Saving files to {folder_name}...")
+    with open(qa_path, "w", encoding="utf-8") as f:
+        f.write(f"# {title}\n\n")
+        f.write(f"**Difficulty:** {problem_data['question']['difficulty']}\n\n")
+        f.write(f"**Link:** https://leetcode.com{problem_data['link']}\n\n")
+        f.write("---\n\n")
+        f.write(solution_data.get("QA_analysis", ""))
+        
+    with open(soln_path, "w", encoding="utf-8") as f:
+        f.write(solution_data.get("soln", ""))
+        
+    # Git operations
+    print("Committing to Git...")
+    try:
+        subprocess.run(["git", "add", folder_name], check=True, capture_output=True)
+        status = subprocess.run(["git", "status", "--porcelain"], check=True, capture_output=True, text=True)
+        
+        if status.stdout.strip():
+            commit_msg = f"Auto-solved: {title} ({date_str})"
+            subprocess.run(["git", "commit", "-m", commit_msg], check=True, capture_output=True)
+            print(f"Committed: {commit_msg}")
+            
+            try:
+                print("Attempting to push...")
+                subprocess.run(["git", "push", "-u", "origin", "main"], check=True, capture_output=True, text=True)
+                print("Push successful!")
+            except subprocess.CalledProcessError as e:
+                print("Push failed. Error:", e.stderr)
+        else:
+            print("No changes to commit.")
+            
+    except subprocess.CalledProcessError as e:
+        print(f"Git operation failed: {e.stderr if e.stderr else e.output}")
+
+def main():
+    problem_data = get_daily_problem()
+    if not problem_data:
+        print("Could not retrieve daily problem. Exiting.")
+        sys.exit(1)
+        
+    print(f"Today's problem: {problem_data['question']['title']}")
+    
+    try:
+        solution_data = solve_problem_with_llm(problem_data)
+        
+        code = solution_data.get("soln", "")
+        question_id = problem_data['question']['questionId']
+        title_slug = problem_data['question']['titleSlug']
+        
+        is_accepted = submit_to_leetcode(title_slug, question_id, code)
+        
+        if is_accepted:
+            save_and_commit(problem_data, solution_data)
+            print("Process completed successfully!")
+        else:
+            print("Solution was not accepted. Skipping save and commit.")
+            
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
+if __name__ == "__main__":
+    main()
