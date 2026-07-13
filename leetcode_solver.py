@@ -1,4 +1,10 @@
 import os
+import certifi
+
+# Fix macOS SSL Certificate errors
+os.environ['REQUESTS_CA_BUNDLE'] = certifi.where()
+os.environ['SSL_CERT_FILE'] = certifi.where()
+
 import sys
 import json
 import time
