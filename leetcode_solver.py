@@ -301,7 +301,7 @@ def save_and_commit(problem_data, solution_data):
         status = subprocess.run(["git", "status", "--porcelain"], cwd=TARGET_REPO_DIR, check=True, capture_output=True, text=True)
         
         if status.stdout.strip():
-            commit_msg = f"Auto-solved: {title} ({date_str})"
+            commit_msg = f"Solved {title} ({date_str})"
             subprocess.run(["git", "commit", "-m", commit_msg], cwd=TARGET_REPO_DIR, check=True, capture_output=True)
             print(f"Committed: {commit_msg}")
             
